@@ -1,0 +1,73 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+local runService = game:GetService("RunService")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Assuming Da Hood has remote events related to movement or teleportation
+-- You need to know the exact RemoteEvent name for sending the position
+local teleportRemote = replicatedStorage:FindFirstChild("TeleportRemote")
+
+local button = script.Parent -- Reference to the UI button for toggling the effect
+
+local dupeActive = false
+local originalPosition = humanoidRootPart.Position -- Store the original position
+local dupeOffset = Vector3.new(100, 0, 0) -- Set a small offset to "dupe" the position
+
+-- Function to send a position to the server
+local function sendPositionToServer(position)
+	if teleportRemote then
+		teleportRemote:FireServer(position) -- Send the position to the server
+	else
+		warn("TeleportRemote not found in ReplicatedStorage.")
+	end
+end
+
+-- Function to start the position "duplication"
+local function startPositionDuping()
+	while dupeActive do
+		if humanoidRootPart then
+			-- Move to an offset position
+			local newPosition = humanoidRootPart.Position + dupeOffset
+			humanoidRootPart.CFrame = CFrame.new(newPosition) -- Set the new position locally
+
+			-- Send the new position to the server
+			sendPositionToServer(newPosition)
+
+			wait(0.1) -- Short delay before returning to the original position
+
+			-- Return to the original position
+			humanoidRootPart.CFrame = CFrame.new(originalPosition)
+			sendPositionToServer(originalPosition)
+
+			wait(0.1) -- Short delay before repeating
+		end
+	end
+end
+
+-- Function to toggle the position duplication effect
+local function toggleDupe()
+	dupeActive = not dupeActive
+
+	if dupeActive then
+		button.BackgroundColor3 = Color3.new(0.905882, 0.196078, 0.0196078) -- Orange when active
+		startPositionDuping() -- Start the dupe loop
+	else
+		button.BackgroundColor3 = Color3.new(0.0117647, 0.0117647, 0.0117647) -- Black when inactive
+	end
+end
+
+-- Connect the button click event to toggle the dupe
+button.MouseButton1Click:Connect(toggleDupe)
+
+-- Handle character respawn and reset position
+player.CharacterAdded:Connect(function(newCharacter)
+	character = newCharacter
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	originalPosition = humanoidRootPart.Position -- Reset the original position for the new character
+end)
+
+-- Initialize button state
+button.BackgroundColor3 = Color3.new(0.0117647, 0.0117647, 0.0117647) -- Set initial button color to black
